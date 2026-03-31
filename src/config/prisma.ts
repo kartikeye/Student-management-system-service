@@ -1,7 +1,16 @@
 import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({
+  adapter,
   log: process.env.NODE_ENV === 'development' 
     ? ['query', 'error', 'warn'] 
     : ['error', 'warn'],
@@ -15,6 +24,7 @@ const gracefulShutdown = async () => {
   console.log('🔄 Shutting down PrismaClient...');
   try {
     await prisma.$disconnect();
+    await pool.end();
     console.log('✅ PrismaClient disconnected successfully');
   } catch (error) {
     console.error('❌ Error disconnecting PrismaClient:', error);
