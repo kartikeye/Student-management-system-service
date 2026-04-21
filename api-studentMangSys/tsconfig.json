@@ -4,7 +4,7 @@
   "compilerOptions": {
     // File Layout
     "rootDir": "./src",
-    "outDir": "api-studentMangSys/dist",
+    "outDir": "./dist",
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module

@@ -25,15 +25,16 @@ const createStudent = async (req: Request, res: Response) => {
       email,
     };
     
-    if (age !== undefined) data.age = age;
-    if (grade !== undefined) data.grade = grade;
-    if (enrollmentDate !== undefined) data.enrollmentDate = new Date(enrollmentDate);
-    if (phone !== undefined) data.phone = phone;
-    if (address !== undefined) data.address = address;
+    if (age != null) data.age = Number(age);
+    if (grade != null) data.grade = grade;
+    if (enrollmentDate != null) data.enrollmentDate = new Date(enrollmentDate);
+    if (phone != null) data.phone = phone;
+    if (address != null) data.address = address;
 
     const student = await prisma.student.create({ data });
     return res.status(201).json(student);
   } catch (error) {
+    console.error("createStudent error:", error);
     if (isPrismaError(error, "P2002")) {
       return res.status(409).json({ message: "Email already exists." });
     }
@@ -77,14 +78,14 @@ const updateStudent = async (req: Request, res: Response) => {
 
   const data: any = {};
   
-  if (firstName !== undefined) data.firstName = firstName;
-  if (lastName !== undefined) data.lastName = lastName;
-  if (email !== undefined) data.email = email;
-  if (age !== undefined) data.age = age;
-  if (grade !== undefined) data.grade = grade;
-  if (enrollmentDate !== undefined) data.enrollmentDate = new Date(enrollmentDate);
-  if (phone !== undefined) data.phone = phone;
-  if (address !== undefined) data.address = address;
+  if (firstName != null) data.firstName = firstName;
+  if (lastName != null) data.lastName = lastName;
+  if (email != null) data.email = email;
+  if (age != null) data.age = Number(age);
+  if (grade != null) data.grade = grade;
+  if (enrollmentDate != null) data.enrollmentDate = new Date(enrollmentDate);
+  if (phone != null) data.phone = phone;
+  if (address != null) data.address = address;
 
   if (Object.keys(data).length === 0) {
     return res.status(400).json({ message: "No valid fields provided to update." });
