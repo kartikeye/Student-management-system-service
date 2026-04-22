@@ -5,7 +5,7 @@ import studentsRouter from "./routes/studentsRoute";
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:5174" }));
+app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
 
 app.use("/health", healthRouter);
