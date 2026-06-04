@@ -13,6 +13,7 @@ A full-stack CRUD application for managing student records, built with Node.js, 
 - [Option 2 — Run Locally Without Docker](#option-2--run-locally-without-docker)
 - [Option 3 — Deploy to AWS with CDK](#option-3--deploy-to-aws-with-cdk)
 - [CORS Configuration](#cors-configuration)
+- [Security](#security)
 - [Project Structure](#project-structure)
 
 ---
@@ -99,7 +100,7 @@ docker compose up --build
 
 This will:
 - Build the API image from `api-studentMangSys/Dockerfile` (multi-stage, Node 22 Alpine)
-- Start a PostgreSQL 16 container with a health check
+- Start a PostgreSQL 16 container with a health check (port 5432 is internal-only — not exposed to the host)
 - Run `prisma migrate deploy` automatically on API startup
 - Serve the API at `http://localhost:3000`
 
@@ -202,9 +203,9 @@ The `aws/` directory contains an AWS CDK v2 app that provisions the full product
 │  │  ┌──────────────────────┐      ┌─────────────────────┐   │ │
 │  │  │  EC2 Security Group  │      │  RDS Security Group │   │ │
 │  │  │  in:  :3000 (API)    │      │  in: :5432 (EC2 SG) │   │ │
-│  │  │  in:  :22   (SSH)    │      │  out: none          │   │ │
-│  │  │  out: all            │      └─────────────────────┘   │ │
-│  │  └──────────────────────┘                                 │ │
+│  │  │  out: all            │      │  out: none          │   │ │
+│  │  └──────────────────────┘      └─────────────────────┘   │ │
+│  │  (SSH port 22 closed — use SSM Session Manager)           │ │
 │  └───────────────────────────────────────────────────────────┘ │
 │                                                                │
 │  ┌──────────── DatabaseStack ─────────────┐                   │
@@ -250,7 +251,7 @@ The `aws/` directory contains an AWS CDK v2 app that provisions the full product
 | VPC | 2 AZs, no NAT gateway (cost saving) |
 | Public Subnet | EC2 lives here — internet access via IGW |
 | Private Subnet | RDS lives here — no internet route |
-| EC2 Security Group | Inbound: port 3000, port 22 |
+| EC2 Security Group | Inbound: port 3000 only — SSH (22) is closed, use SSM |
 | RDS Security Group | Inbound: port 5432 from EC2 SG only |
 
 **DatabaseStack** (`student-mgmt-database`)
@@ -266,8 +267,8 @@ The `aws/` directory contains an AWS CDK v2 app that provisions the full product
 | Resource | Detail |
 |---|---|
 | DockerImageAsset | CDK builds the image from `api-studentMangSys/Dockerfile` and pushes to ECR on every deploy |
-| IAM Role | EC2 permission to pull from ECR and read the DB secret |
-| EC2 t3.micro | Amazon Linux 2023, runs the Docker container via User Data |
+| IAM Role | EC2 permission to pull from ECR and read the DB secret (least-privilege) |
+| EC2 t3.micro | Amazon Linux 2023, IMDSv2 enforced, runs the Docker container via User Data |
 | Outputs | API endpoint URL, EC2 public IP, ECR image URI |
 
 ### Prerequisites
@@ -340,21 +341,25 @@ cdk deploy DatabaseStack --profile dev
 cdk deploy AppStack      --profile dev
 ```
 
-### SSH into the EC2 Instance
+### Access the EC2 Instance (SSM Session Manager)
+
+SSH port 22 is intentionally closed on the security group. Use SSM Session Manager instead — no key pair needed, access is IAM-authenticated:
 
 ```bash
-ssh ec2-user@<EC2-PUBLIC-IP>
-```
+# Find the instance ID from the AWS console, or:
+aws ec2 describe-instances \
+  --filters "Name=tag:aws:cloudformation:stack-name,Values=student-mgmt-app" \
+  --query "Reservations[0].Instances[0].InstanceId" \
+  --output text --profile dev
 
-Or use Session Manager (no SSH key required, IAM-authenticated):
-```bash
+# Open a shell session
 aws ssm start-session --target <INSTANCE-ID> --profile dev
 ```
 
 ### View Container Logs on EC2
 
 ```bash
-ssh ec2-user@<EC2-PUBLIC-IP>
+# Via SSM session (see above), then:
 sudo docker logs student-mgmt-api --follow
 ```
 
@@ -386,6 +391,38 @@ To lock down CORS in production, set the `CORS_ORIGIN` environment variable when
 ```bash
 docker run -e CORS_ORIGIN="https://myapp.com" ...
 ```
+
+---
+
+## Security
+
+### AWS infrastructure
+
+| Control | Detail |
+|---|---|
+| No SSH exposure | EC2 security group has port 22 closed. Remote access is via SSM Session Manager (IAM-authenticated, no key pair). |
+| IMDSv2 enforced | `requireImdsv2: true` on the EC2 instance. Blocks SSRF-based credential theft via the `169.254.169.254` metadata endpoint. |
+| Least-privilege IAM | EC2 role grants only ECR `grantPull` and Secrets Manager `grantRead` on the specific DB secret — no wildcards. |
+| Database not public | RDS lives in a private isolated subnet with no internet route. Its security group accepts connections on port 5432 from the EC2 security group only. |
+| Credentials via Secrets Manager | `DATABASE_URL` is never stored in environment files or CloudFormation parameters. It is fetched from Secrets Manager at EC2 boot time and passed to the container as a runtime env var. |
+| Storage encrypted | RDS storage encryption is enabled at rest. |
+
+### Local development
+
+| Control | Detail |
+|---|---|
+| `.env` not in git | `api-studentMangSys/.env` is gitignored. Credentials never leave your machine. |
+| DB not exposed to host | `docker-compose.yml` does not publish port 5432. PostgreSQL is reachable only by the `api` container on the internal Docker network. |
+| Dynamic CORS | The API rejects cross-origin requests from non-localhost origins unless `CORS_ORIGIN` is explicitly set. See [CORS Configuration](#cors-configuration). |
+
+### Known dev-only trade-offs (not suitable for production as-is)
+
+| Trade-off | Production fix |
+|---|---|
+| HTTP only, no TLS | Add an Application Load Balancer with an ACM certificate in front of EC2 |
+| Single EC2, no auto-scaling | Replace EC2 with ECS Fargate + ALB |
+| `deletionProtection: false` on RDS | Set to `true` and enable automated snapshots |
+| Weak local DB password (`root`) | Use a strong generated password or a `.env.example` template |
 
 ---
 

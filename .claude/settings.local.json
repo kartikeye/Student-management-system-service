@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem -Force)",
-      "Bash(aws ssm *)"
+      "Bash(aws ssm *)",
+      "Bash(aws ec2 *)"
     ]
   }
 }

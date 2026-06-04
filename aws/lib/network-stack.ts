@@ -33,7 +33,7 @@ export class NetworkStack extends cdk.Stack {
       allowAllOutbound: true,
     });
     this.ec2Sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(3000), 'API traffic');
-    this.ec2Sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), 'SSH');
+    // SSH (port 22) intentionally not opened — use SSM Session Manager instead
 
     this.rdsSg = new ec2.SecurityGroup(this, 'RdsSg', {
       vpc: this.vpc,

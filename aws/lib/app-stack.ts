@@ -69,6 +69,9 @@ export class AppStack extends cdk.Stack {
       role: ec2Role,
       userData,
       associatePublicIpAddress: true,
+      // Require IMDSv2 — prevents SSRF attacks from stealing instance credentials
+      // via the metadata endpoint (169.254.169.254)
+      requireImdsv2: true,
     });
 
     // Ensure RDS is ready before EC2 boots and runs migrations
