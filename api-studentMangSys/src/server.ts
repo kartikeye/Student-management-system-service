@@ -5,15 +5,27 @@ import studentsRouter from "./routes/studentsRoute";
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    // Allow any localhost port in dev; restrict to env var in production
+    const allowed = process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',')
+      : null;
+    if (allowed) return callback(null, allowed.includes(origin));
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+}));
 app.use(express.json());
 
 app.use("/health", healthRouter);
 app.use("/students", studentsRouter);
 
-app.get("/", (req, res) => {
-  res.status(200).send("hello world");
-});
+// app.get("/", (req, res) => {
+//   res.status(200).send("hello world");
+// });
 
 app.use((req, res) => {
   console.log(`404 hit -> ${req.method} ${req.originalUrl}`);

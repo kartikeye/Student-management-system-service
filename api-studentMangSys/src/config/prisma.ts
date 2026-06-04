@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }, // RDS requires SSL; cert is AWS-managed so we skip verification
 });
 
 const adapter = new PrismaPg(pool);
