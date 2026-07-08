@@ -79,6 +79,8 @@ stages:
         eq(variables['Build.SourceBranch'], 'refs/heads/main'),
         ne(variables['Build.Reason'], 'PullRequest')
       )
+    variables:
+      - group: aws-credentials
     jobs:
       - deployment: CdkDeploy
         displayName: 'cdk deploy --all'
