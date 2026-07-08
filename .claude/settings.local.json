@@ -3,7 +3,9 @@
     "allow": [
       "Bash(Get-ChildItem -Force)",
       "Bash(aws ssm *)",
-      "Bash(aws ec2 *)"
+      "Bash(aws ec2 *)",
+      "Bash(az --version)",
+      "Bash(az devops *)"
     ]
   }
 }
