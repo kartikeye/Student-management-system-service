@@ -66,9 +66,12 @@ stages:
           - script: npm test
             workingDirectory: aws
             displayName: 'jest tests'
-          - script: npx cdk synth --all
+          - script: npx cdk synth
             workingDirectory: aws
             displayName: 'cdk synth (template validation)'
+            env:
+              CDK_DEFAULT_ACCOUNT: '294150216484'
+              CDK_DEFAULT_REGION: 'ap-southeast-2'
 
   - stage: DeployAws
     displayName: 'Deploy to AWS'
