@@ -1,0 +1,111 @@
+# CI: builds client, api, and CDK infra on every push/PR to dev or main.
+# CD: deploys the CDK stacks to AWS, only on a push to main.
+trigger:
+  branches:
+    include:
+      - main
+      - dev
+
+pr:
+  branches:
+    include:
+      - main
+      - dev
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  NODE_VERSION: '22.x'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: Client
+        displayName: 'Client (Vite/React)'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+          - script: npm ci
+            workingDirectory: client-studentMangSys
+            displayName: 'npm ci'
+          - script: npm run build
+            workingDirectory: client-studentMangSys
+            displayName: 'npm run build'
+
+      - job: Api
+        displayName: 'API (Express/Prisma)'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+          - script: npm ci
+            workingDirectory: api-studentMangSys
+            displayName: 'npm ci'
+          - script: npx prisma generate
+            workingDirectory: api-studentMangSys
+            displayName: 'prisma generate'
+          - script: npm run build
+            workingDirectory: api-studentMangSys
+            displayName: 'npm run build'
+
+      - job: Infra
+        displayName: 'CDK Infra'
+        variables:
+          - group: aws-credentials
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+          - script: npm ci
+            workingDirectory: aws
+            displayName: 'npm ci'
+          - script: npm run build
+            workingDirectory: aws
+            displayName: 'tsc build'
+          - script: npm test
+            workingDirectory: aws
+            displayName: 'jest tests'
+          - script: npx cdk synth
+            workingDirectory: aws
+            displayName: 'cdk synth (template validation)'
+            env:
+              AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_DEFAULT_REGION: $(AWS_DEFAULT_REGION)
+
+  - stage: DeployAws
+    displayName: 'Deploy to AWS'
+    dependsOn: Build
+    condition: |
+      and(
+        succeeded(),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+        ne(variables['Build.Reason'], 'PullRequest')
+      )
+    variables:
+      - group: aws-credentials
+    jobs:
+      - deployment: CdkDeploy
+        displayName: 'cdk deploy --all'
+        environment: 'aws-production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: NodeTool@0
+                  inputs:
+                    versionSpec: $(NODE_VERSION)
+                - script: npm ci
+                  workingDirectory: aws
+                  displayName: 'npm ci'
+                - script: npx cdk deploy --all --require-approval never
+                  workingDirectory: aws
+                  displayName: 'cdk deploy'
+                  env:
+                    AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+                    AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+                    AWS_DEFAULT_REGION: $(AWS_DEFAULT_REGION)
