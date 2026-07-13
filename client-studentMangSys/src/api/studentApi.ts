@@ -1,8 +1,17 @@
 import axios from 'axios';
 import type { Student, StudentFormData } from '../types/student';
+import { getAccessToken } from '../auth/tokenStore';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const getStudents = async (): Promise<Student[]> => {

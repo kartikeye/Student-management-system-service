@@ -3,6 +3,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
@@ -10,6 +11,8 @@ interface AppStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
   ec2Sg: ec2.SecurityGroup;
   database: rds.DatabaseInstance;
+  userPool: cognito.UserPool;
+  userPoolClient: cognito.UserPoolClient;
 }
 
 export class AppStack extends cdk.Stack {
@@ -57,7 +60,12 @@ export class AppStack extends cdk.Stack {
 
       // Pull and run the containerised API
       `docker pull ${dockerImage.imageUri}`,
-      `docker run -d --name student-mgmt-api --restart unless-stopped -p 3000:3000 -e DATABASE_URL="$DATABASE_URL" -e NODE_ENV=production -e PORT=3000 ${dockerImage.imageUri}`,
+      `docker run -d --name student-mgmt-api --restart unless-stopped -p 3000:3000 ` +
+        `-e DATABASE_URL="$DATABASE_URL" -e NODE_ENV=production -e PORT=3000 ` +
+        `-e COGNITO_USER_POOL_ID="${props.userPool.userPoolId}" ` +
+        `-e COGNITO_CLIENT_ID="${props.userPoolClient.userPoolClientId}" ` +
+        `-e COGNITO_REGION="${this.region}" ` +
+        `${dockerImage.imageUri}`,
     );
 
     const instance = new ec2.Instance(this, 'StudentMgmtEc2', {

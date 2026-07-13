@@ -17,6 +17,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.0.0",
     "@mui/material": "^9.0.0",
+    "amazon-cognito-identity-js": "^6.3.20",
     "axios": "^1.15.1"
   }
 }
