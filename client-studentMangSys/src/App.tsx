@@ -4,13 +4,18 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import LogoutIcon from '@mui/icons-material/Logout';
 import StudentTable from './components/StudentTable';
 import StudentForm from './components/StudentForm';
 import DeleteDialog from './components/DeleteDialog';
 import { getStudents, createStudent, updateStudent, deleteStudent } from './api/studentApi';
 import type { Student, StudentFormData } from './types/student';
+import { useAuth } from './auth/AuthContext';
+import AuthScreen from './auth/AuthScreen';
 
 export default function App() {
+  const { user, loading: authLoading, isAdmin, signOut } = useAuth();
+
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +39,9 @@ export default function App() {
     }
   };
 
-  useEffect(() => { fetchStudents(); }, []);
+  useEffect(() => {
+    if (user) fetchStudents();
+  }, [user]);
 
   const handleSave = async (data: StudentFormData, id?: number) => {
     if (id) {
@@ -57,16 +64,34 @@ export default function App() {
   const openEdit = (s: Student) => { setEditTarget(s); setFormOpen(true); };
   const openDelete = (s: Student) => { setDeleteTarget(s); setDeleteOpen(true); };
 
+  if (authLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Student Management</Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+            {user.email} {isAdmin ? '(admin)' : ''}
+          </Typography>
           <Button startIcon={<RefreshIcon />} onClick={fetchStudents} disabled={loading}>
             Refresh
           </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>
             Add Student
+          </Button>
+          <Button startIcon={<LogoutIcon />} onClick={signOut}>
+            Sign Out
           </Button>
         </Box>
       </Box>
@@ -78,7 +103,7 @@ export default function App() {
           <CircularProgress />
         </Box>
       ) : (
-        <StudentTable students={students} onEdit={openEdit} onDelete={openDelete} />
+        <StudentTable students={students} onEdit={openEdit} onDelete={openDelete} canDelete={isAdmin} />
       )}
 
       <StudentForm

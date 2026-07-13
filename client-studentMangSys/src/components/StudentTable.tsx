@@ -10,9 +10,10 @@ interface Props {
   students: Student[];
   onEdit: (student: Student) => void;
   onDelete: (student: Student) => void;
+  canDelete: boolean;
 }
 
-export default function StudentTable({ students, onEdit, onDelete }: Props) {
+export default function StudentTable({ students, onEdit, onDelete, canDelete }: Props) {
   if (students.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -51,11 +52,13 @@ export default function StudentTable({ students, onEdit, onDelete }: Props) {
                     <EditIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Delete">
-                  <IconButton color="error" onClick={() => onDelete(s)} size="small">
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {canDelete && (
+                  <Tooltip title="Delete">
+                    <IconButton color="error" onClick={() => onDelete(s)} size="small">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </TableCell>
             </TableRow>
           ))}
